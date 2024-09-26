@@ -196,7 +196,7 @@ def main(config: DictConfig):
         name=config.wandb.name,
         resume=config.wandb.continue_run_id is not None,
         project=config.wandb.project,
-        entity="robot-rearrangement",
+#        entity="robot-rearrangement",
         config=config_dict,
         mode=config.wandb.mode,
         notes=config.wandb.notes,
