@@ -43,6 +43,11 @@ def main():
         help="If set, will only allow the number of annotations to be the same as the number of bottleneck states",
     )
 
+    parser.add_argument(
+        "--new",
+        action="store_true",
+        help="Annotate new bottleneck regions on top of the old.")
+
     args = parser.parse_args()
 
     # 1. Load the video
@@ -61,6 +66,12 @@ def main():
         square_table=4,
     )
 
+    aug_state_name =""
+    if args.new is True:
+        aug_state_name = "new_augment_states"
+    else:
+        aug_state_name = "augment_states"
+
     pkl_paths = sorted(pkl_paths)
 
     for i, pkl_path in enumerate(pkl_paths, start=0):
@@ -72,9 +83,9 @@ def main():
 
         data = unpickle_data(pkl_path)
 
-        if (not args.annotate_strict and "augment_states" in data) or (
+        if (not args.annotate_strict and aug_state_name in data) or (
             args.annotate_strict
-            and sum(data.get("augment_states", [])) == n_bottleneck_states[args.task]
+            and sum(data.get(aug_state_name, [])) == n_bottleneck_states[args.task]
         ):
             print(f"Data {path_name} has already been annotated")
             continue
@@ -102,7 +113,7 @@ def main():
                 # Check if the number of annotations is correct
                 if (
                     args.annotate_strict
-                    and len(annotations) != n_bottleneck_states[args.stask]
+                    and len(annotations) != n_bottleneck_states[args.task]
                 ):
                     print(
                         f"Data {path_name} has {sum(data.get('augment_states', []))} annotations, expected {n_bottleneck_states[args.task]}"
@@ -112,9 +123,9 @@ def main():
                 print(f"Saving annotations to {pkl_path}")
                 # Save the annotations to a file
                 # Convert the indexes to a list of 0s and 1s
-                data["augment_states"] = np.zeros(total_frames)
+                data[aug_state_name] = np.zeros(total_frames)
                 for annotation in annotations:
-                    data["augment_states"][annotation] = 1
+                    data[aug_state_name][annotation] = 1
 
                 if failure_idx is not None:
                     data["failure_idx"] = failure_idx

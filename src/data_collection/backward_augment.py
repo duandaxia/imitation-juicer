@@ -105,6 +105,8 @@ class DataCollectorAugmentor:
         ee_laser: bool = True,
         right_multiply_rot: bool = True,
         compress_pickles: bool = False,
+        new_aug: bool = False,
+        save_aug: bool = False,
     ):
         """
         Args:
@@ -150,6 +152,9 @@ class DataCollectorAugmentor:
             ctrl_mode=ctrl_mode,
             ee_laser=ee_laser,
         )
+
+        self.new_aug = new_aug
+        self.save_aug = save_aug
 
         self.data_path = Path(data_path)
         self.headless = headless
@@ -299,7 +304,10 @@ class DataCollectorAugmentor:
                     if done:
                         collect_enum = CollectEnum.SUCCESS
 
-                    obs = self.save_and_reset(collect_enum, {})
+                    if self.save_aug:
+                        obs = self.save_and_reset(collect_enum, {})
+                    else:
+                        obs = self.reset()
                     self.num_success += 1
                     self.update_pbar()
 
@@ -578,8 +586,14 @@ class DataCollectorAugmentor:
 
         state = unpickle_data(trajectory_path)
 
+        aug_state = "augment_states"
+        if self.new_aug:
+            aug_state="new_augment_states"
+
+        print(aug_state)
+
         if self.count_per_critical_state is None:
-            n_critical_states = len(np.where(state["augment_states"] == 1)[0])
+            n_critical_states = len(np.where(state[aug_state] == 1)[0])
             self.count_per_critical_state = np.ones(n_critical_states)
 
         print(f"Count per critical state: {self.count_per_critical_state - 1 }")
@@ -591,7 +605,7 @@ class DataCollectorAugmentor:
         print(f"Probabilities: {probabilities}")
 
         # Sample a critical state index based on the calculated probabilities
-        aug_state_indices = np.where(state["augment_states"] == 1)[0]
+        aug_state_indices = np.where(state[aug_state] == 1)[0]
         critical_state_idx = np.random.choice(
             np.arange(len(probabilities)), p=probabilities
         )
@@ -971,12 +985,21 @@ def main():
     parser.add_argument(
         "--draw-marker", action="store_true", help="Draw AprilTag marker"
     )
+
+    parser.add_argument(
+        "--new", action="store_true", default=False, help="Augment the new bottleneck regions"
+    )    
+    parser.add_argument(
+        "--save-aug", action="store_true", default=False, help="Save the augmented data"
+    )
     args = parser.parse_args()
 
+
+
     data_path = trajectory_save_dir(
-        environment="sim" if args.is_sim else "real",
+        environment="sim",# if args.is_sim else "real",
         task=args.furniture,
-        demo_source="augmentation",
+        demo_source= ("new_augmentation" if args.new else "augmentation"),
         randomness=args.randomness,
     )
 
@@ -1022,6 +1045,8 @@ def main():
         ctrl_mode=args.ctrl_mode,
         compress_pickles=args.compress_pickles,
         augment_trajectories_paths=pickle_paths_aug,
+        new_aug=args.new,
+        save_aug=args.save_aug,
     )
     data_collector.collect()
 
